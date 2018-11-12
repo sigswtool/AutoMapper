@@ -16,9 +16,9 @@ namespace AutoMapper
             var maps = typeMaps as TypeMap[] ?? typeMaps.ToArray();
             var badTypeMaps =
                 (from typeMap in maps
-                    where typeMap.ShouldCheckForValid()
+                    where typeMap.ShouldCheckForValid
                     let unmappedPropertyNames = typeMap.GetUnmappedPropertyNames()
-                    let canConstruct = typeMap.PassesCtorValidation()
+                    let canConstruct = typeMap.PassesCtorValidation
                     where unmappedPropertyNames.Length > 0 || !canConstruct
                     select new AutoMapperConfigurationException.TypeMapConfigErrors(typeMap, unmappedPropertyNames, canConstruct)
                     ).ToArray();
@@ -57,16 +57,30 @@ namespace AutoMapper
         {
             if(typeMap == null)
             {
+                if (types.SourceType.IsGenericParameter || types.DestinationType.IsGenericParameter)
+                {
+                    return;
+                }
                 typeMap = _config.ResolveTypeMap(types.SourceType, types.DestinationType);
             }
             if (typeMap != null)
             {
-                if(typeMapsChecked.Contains(typeMap))
+                if (typeMap.IsClosedGeneric)
+                {
+                    // it was already validated
+                    return;
+                }
+                // dynamic maps get mapped at runtime yolo
+                if (typeMap.IsConventionMap && typeMap.Profile.CreateMissingTypeMaps)
+                {
+                    return;
+                }
+                if (typeMapsChecked.Contains(typeMap))
                 {
                     return;
                 }
                 typeMapsChecked.Add(typeMap);
-                if(typeMap.CustomMapper != null || typeMap.TypeConverterType != null)
+                if(typeMap.CustomMapFunction != null || typeMap.TypeConverterType != null)
                 {
                     return;
                 }
@@ -80,10 +94,6 @@ namespace AutoMapper
                 var mapperToUse = _config.FindMapper(types);
                 if (mapperToUse == null)
                 {
-                    // Maps with no match get mapped at runtime yolo
-                    if (propertyMap.TypeMap.Profile.CreateMissingTypeMaps)
-                        return;
-
                     throw new AutoMapperConfigurationException(propertyMap.TypeMap.Types) { PropertyMap = propertyMap };
                 }
                 var context = new ValidationContext(types, propertyMap, mapperToUse);
@@ -98,7 +108,7 @@ namespace AutoMapper
 
         private void CheckPropertyMaps(ICollection<TypeMap> typeMapsChecked, TypeMap typeMap)
         {
-            foreach (var propertyMap in typeMap.GetPropertyMaps())
+            foreach (var propertyMap in typeMap.PropertyMaps)
             {
                 if (propertyMap.Ignored) continue;
 
@@ -110,7 +120,7 @@ namespace AutoMapper
                 if (sourceType.IsGenericParameter || sourceType == typeof (object))
                     return;
 
-                var destinationType = propertyMap.DestinationProperty.GetMemberType();
+                var destinationType = propertyMap.DestinationMember.GetMemberType();
                 DryRunTypeMap(typeMapsChecked, new TypePair(sourceType, destinationType), null, propertyMap);
             }
         }

@@ -59,6 +59,10 @@ The `.ProjectTo<OrderLineDTO>()` will tell AutoMapper's mapping engine to emit a
 
 Note that for this feature to work, all type conversions must be explicitly handled in your Mapping. For example, you can not rely on the `ToString()` override of the `Item` class to inform entity framework to only select from the `Name` column, and any data type changes, such as `Double` to `Decimal` must be explicitly handled as well.
 
+### The instance API
+
+Starting with 8.0 there are similar ProjectTo methods on IMapper that feel more natural when you use IMapper with DI.
+
 ### Preventing lazy loading/SELECT N+1 problems
 
 Because the LINQ projection built by AutoMapper is translated directly to a SQL query by the query provider, the mapping occurs at the SQL/ADO.NET level, and not touching your entities. All data is eagerly fetched and loaded into your DTOs.
@@ -87,7 +91,7 @@ This map through AutoMapper will result in a SELECT N+1 problem, as each child `
 
 ### Custom projection
 
-In the case where members names don't line up, or you want to create calculated property, you can use MapFrom (and not ResolveUsing) to supply a custom expression for a destination member:
+In the case where members names don't line up, or you want to create calculated property, you can use MapFrom (the expression-based overload) to supply a custom expression for a destination member:
 
 ```c#
 Mapper.Initialize(cfg => cfg.CreateMap<Customer, CustomerDto>()
@@ -101,21 +105,21 @@ If the expression is rejected from your query provider (Entity Framework, NHiber
 
 ### Custom Type Conversion
 
-Occasionally, you need to completely replace a type conversion from a source to a destination type. In normal runtime mapping, this is accomplished via the ConvertUsing method. To perform the analog in LINQ projection, use the ProjectUsing method:
+Occasionally, you need to completely replace a type conversion from a source to a destination type. In normal runtime mapping, this is accomplished via the ConvertUsing method. To perform the analog in LINQ projection, use the ConvertUsing method:
 
 ```c#
-cfg.CreateMap<Source, Dest>().ProjectUsing(src => new Dest { Value = 10 });
+cfg.CreateMap<Source, Dest>().ConvertUsing(src => new Dest { Value = 10 });
 ```
 
-`ProjectUsing` is slightly more limited than `ConvertUsing` as only what is allowed in an Expression and the underlying LINQ provider will work.
+The expression-based `ConvertUsing` is slightly more limited than Func-based `ConvertUsing` overloads as only what is allowed in an Expression and the underlying LINQ provider will work.
 
 ### Custom destination type constructors
 
-If your destination type has a custom constructor but you don't want to override the entire mapping, use the ConstructProjectionUsing method:
+If your destination type has a custom constructor but you don't want to override the entire mapping, use the ConstructUsing expression-based method overload:
 
 ```c#
 cfg.CreateMap<Source, Dest>()
-    .ConstructProjectionUsing(src => new Dest(src.Value + 10));
+    .ConstructUsing(src => new Dest(src.Value + 10));
 ```
 
 AutoMapper will automatically match up destination constructor parameters to source members based on matching names, so only use this method if AutoMapper can't match up the destination constructor properly, or if you need extra customization during construction.
@@ -183,23 +187,30 @@ dbContext.Courses.ProjectTo<CourseModel>(Config, new { currentUserName = Request
 
 This works by capturing the name of the closure's field name in the original expression, then using an anonymous object/dictionary to apply the value to the parameter value before the query is sent to the query provider.
 
+You may also use a dictionary to build the projection values:
+
+```c#
+dbContext.Courses.ProjectTo<CourseModel>(Config, new Dictionary<string, object> { {"currentUserName", Request.User.Name} });
+```
+
+However, using a dictionary will result in hard-coded values in the query instead of a parameterized query, so use with caution.
+
 ### Supported mapping options
 
 Not all mapping options can be supported, as the expression generated must be interpreted by a LINQ provider. Only what is supported by LINQ providers is supported by AutoMapper:
-* MapFrom
+* MapFrom (Expression-based)
 * Ignore
-* UseValue
 * NullSubstitute
 
 Not supported:
 * Condition
-* DoNotUseDestinationValue
 * SetMappingOrder
 * UseDestinationValue
-* ResolveUsing
+* MapFrom (Func-based)
 * Before/AfterMap
 * Custom resolvers
 * Custom type converters
+* ForPath
 * **Any calculated property on your domain object**
 
 Additionally, recursive or self-referencing destination types are not supported as LINQ providers do not support this. Typically hierarchical relational data models require common table expressions (CTEs) to correctly resolve a recursive join.

@@ -13,9 +13,8 @@ domain and application layer.
 
 AutoMapper supports the following platforms:
 
-* .NET 4.0
-* .NET 4.5.2+
-* .NET Platform Standard 1.1 & 1.3
+* .NET 4.6.1+
+* `.NET Standard 2.0+ https://docs.microsoft.com/en-us/dotnet/standard/net-standard`
 
 New to AutoMapper? Check out the :doc:`Getting-started` page first.
 
@@ -28,7 +27,12 @@ New to AutoMapper? Check out the :doc:`Getting-started` page first.
 
    Getting-started
    5.0-Upgrade-Guide
+   8.0-Upgrade-Guide
+   Static-and-Instance-API
+   Migrating-from-static-API
    Conventions
+   Understanding-your-mapping
+   The-MyGet-build
 
 .. _feature-docs:
 
@@ -45,6 +49,7 @@ New to AutoMapper? Check out the :doc:`Getting-started` page first.
    Nested-mappings
    Custom-type-converters
    Custom-value-resolvers
+   Value-converters
    Value-transformers
    Null-substitution
    Before-and-after-map-actions
@@ -52,11 +57,12 @@ New to AutoMapper? Check out the :doc:`Getting-started` page first.
    Mapping-inheritance
    Queryable-Extensions
    Configuration
+   Construction
    Conditional-mapping
-   Editing-Resolvers-and-Conditions
    Open-Generics
-   Understanding-your-mapping
-
+   Dynamic-and-ExpandoObject-Mapping
+   Expression-Translation-(UseAsDataSource)
+      
 Samples
 =======
 

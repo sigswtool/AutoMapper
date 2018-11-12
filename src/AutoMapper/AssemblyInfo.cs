@@ -1,13 +1,9 @@
 ﻿using System;
 using System.Resources;
-
-#if NET45 || NET40
+using System.Runtime.InteropServices;
 using System.Security;
-#endif
 
-[assembly:CLSCompliant(true)]
-#if NET45 || NET40
+[assembly: CLSCompliant(true)]
 [assembly: AllowPartiallyTrustedCallers]
-#endif
-
+[assembly: ComVisible(false)]
 [assembly: NeutralResourcesLanguage("en")]

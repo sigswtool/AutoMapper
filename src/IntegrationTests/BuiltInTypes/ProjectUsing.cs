@@ -17,8 +17,8 @@ namespace AutoMapper.IntegrationTests.Net4
             public MyProfile()
             {
                 CreateMap<MyTable, MyTableModel>();
-                CreateMap<int, MyEnum>().ProjectUsing(x => (MyEnum)x);
-                CreateMap<int?, MyEnum>().ProjectUsing(x => x.HasValue ? (MyEnum)x.Value : MyEnum.Value1);
+                CreateMap<int, MyEnum>().ConvertUsing(x => (MyEnum)x);
+                CreateMap<int?, MyEnum>().ConvertUsing(x => x.HasValue ? (MyEnum)x.Value : MyEnum.Value1);
             }
         }
 
@@ -69,7 +69,7 @@ namespace AutoMapper.IntegrationTests.Net4
         {
             using(var context = new TestContext())
             {
-                var results = context.MyTable.ProjectTo<MyTableModel>(Configuration).ToList();
+                var results = ProjectTo<MyTableModel>(context.MyTable).ToList();
                 results[0].Id.ShouldBe(1);
                 results[0].EnumValue.ShouldBe(MyEnum.Value2);
                 results[0].EnumValueNullable.ShouldBe(MyEnum.Value1);
@@ -126,7 +126,7 @@ namespace AutoMapper.IntegrationTests.Net4
         {
             cfg.CreateMap<Parent, ParentVM>();
             cfg.CreateMap<Children, int>()
-                .ProjectUsing(c => c.ID);
+                .ConvertUsing(c => c.ID);
         });
 
         [Fact]
@@ -134,7 +134,7 @@ namespace AutoMapper.IntegrationTests.Net4
         {
             using (var db = new ApplicationDBContext())
             {
-                var result = db.Parents.ProjectTo<ParentVM>(Configuration);
+                var result = ProjectTo<ParentVM>(db.Parents);
             }
         }
     }

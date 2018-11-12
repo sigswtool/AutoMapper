@@ -102,16 +102,6 @@ namespace AutoMapper.Tests
 
     public class EnumMappingFixture
     {
-        public EnumMappingFixture()
-        {
-            Cleanup();
-        }
-
-        public void Cleanup()
-        {
-            
-        }
-
         [Fact]
         public void ShouldMapSharedEnum()
         {
@@ -290,7 +280,7 @@ namespace AutoMapper.Tests
         public void ShouldMapEnumUsingCustomResolver()
         {
             var config = new MapperConfiguration(cfg => cfg.CreateMap<Order, OrderDtoWithOwnStatus>()
-                .ForMember(dto => dto.Status, options => options.ResolveUsing<DtoStatusValueResolver>()));
+                .ForMember(dto => dto.Status, options => options.MapFrom<DtoStatusValueResolver>()));
 
             var order = new Order
                 {
@@ -307,7 +297,7 @@ namespace AutoMapper.Tests
         public void ShouldMapEnumUsingGenericEnumResolver()
         {
             var config = new MapperConfiguration(cfg => cfg.CreateMap<Order, OrderDtoWithOwnStatus>()
-                .ForMember(dto => dto.Status, options => options.ResolveUsing<EnumValueResolver<Status, StatusForDto>, Status>(m => m.Status)));
+                .ForMember(dto => dto.Status, options => options.MapFrom<EnumValueResolver<Status, StatusForDto>, Status>(m => m.Status)));
 
             var order = new Order
                 {

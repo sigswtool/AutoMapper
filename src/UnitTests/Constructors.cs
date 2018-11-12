@@ -8,6 +8,132 @@ using System.Diagnostics;
 
 namespace AutoMapper.UnitTests.Constructors
 {
+    public class Dynamic_constructor_mapping : AutoMapperSpecBase
+    {
+        public class ParentDTO
+        {
+            public ChildDTO First => Children[0];
+            public List<ChildDTO> Children { get; set; } = new List<ChildDTO>();
+            public int IdParent { get; set; }
+        }
+
+        public class ChildDTO
+        {
+            public int IdChild { get; set; }
+            public ParentDTO Parent { get; set; }
+        }
+
+        public class ParentModel
+        {
+            public ChildModel First { get; set; }
+            public List<ChildModel> Children { get; set; } = new List<ChildModel>();
+            public int IdParent { get; set; }
+        }
+
+        public class ChildModel
+        {
+            int _idChild;
+
+            public ChildModel(ParentModel parent)
+            {
+                Parent = parent;
+            }
+
+            public int IdChild
+            {
+                get => _idChild;
+                set
+                {
+                    if(_idChild != 0)
+                    {
+                        throw new Exception("Set IdChild again.");
+                    }
+                    _idChild = value;
+                }
+            }
+            public ParentModel Parent { get; }
+        }
+
+        protected override MapperConfiguration Configuration => new MapperConfiguration(_=> { });
+
+        [Fact]
+        public void Should_work()
+        {
+            var parentDto = new ParentDTO { IdParent = 1 };
+            for(var i = 0; i < 5; i++)
+            {
+                parentDto.Children.Add(new ChildDTO { IdChild = i, Parent = parentDto });
+            }
+            var parentModel = Mapper.Map<ParentModel>(parentDto);
+            var mappedChildren = Mapper.Map<List<ChildDTO>, List<ChildModel>>(parentDto.Children);
+        }
+    }
+
+    public class Constructor_mapping_without_preserve_references : AutoMapperSpecBase
+    {
+        public class ParentDTO
+        {
+            public ChildDTO First => Children[0];
+            public List<ChildDTO> Children { get; set; } = new List<ChildDTO>();
+            public int IdParent { get; set; }
+        }
+
+        public class ChildDTO
+        {
+            public int IdChild { get; set; }
+            public ParentDTO Parent { get; set; }
+        }
+
+        public class ParentModel
+        {
+            public ChildModel First { get; set; }
+            public List<ChildModel> Children { get; set; } = new List<ChildModel>();
+            public int IdParent { get; set; }
+        }
+
+        public class ChildModel
+        {
+            int _idChild;
+
+            public ChildModel(ParentModel parent)
+            {
+                Parent = parent;
+            }
+
+            public int IdChild
+            {
+                get => _idChild;
+                set
+                {
+                    if(_idChild != 0)
+                    {
+                        throw new Exception("Set IdChild again.");
+                    }
+                    _idChild = value;
+                }
+            }
+            public ParentModel Parent { get; set; }
+        }
+
+        protected override MapperConfiguration Configuration => new MapperConfiguration(cfg =>
+        {
+            cfg.CreateMap<ChildDTO, ChildModel>().ForMember(c => c.Parent, o => o.Ignore());
+            cfg.CreateMap<ParentDTO, ParentModel>();
+        });
+
+        [Fact]
+        public void Should_work()
+        {
+            var parentDto = new ParentDTO { IdParent = 1 };
+            for(var i = 0; i < 5; i++)
+            {
+                parentDto.Children.Add(new ChildDTO { IdChild = i, Parent = parentDto });
+            }
+
+            var mappedChildren = Mapper.Map<List<ChildDTO>, List<ChildModel>>(parentDto.Children);
+        }
+    }
+
     public class Preserve_references_with_constructor_mapping : AutoMapperSpecBase
     {
         public class ParentDTO
@@ -378,6 +504,7 @@ namespace AutoMapper.UnitTests.Constructors
         [Fact]
         public void Should_map_from_the_property()
         {
+            var typeMap = Configuration.FindTypeMapFor<Person, PersonDto>();
             _destination.Name.ShouldBe("John");
         }
     }
@@ -763,6 +890,45 @@ namespace AutoMapper.UnitTests.Constructors
         {
             _destination.Foo.ShouldBe(5);
             _destination.Bar.ShouldBe("bar");
+        }
+    }
+
+    public class When_mapping_constructor_argument_fails : AutoMapperSpecBase
+    {
+        public class Source
+        {
+            public int Foo { get; set; }
+            public int Bar { get; set; }
+        }
+
+        public class Dest
+        {
+            private readonly int _foo;
+
+            public int Foo
+            {
+                get { return _foo; }
+            }
+
+            public int Bar { get; set; }
+
+            public Dest(DateTime foo)
+            {
+                _foo = foo.Day;
+            }
+        }
+
+        protected override MapperConfiguration Configuration { get; } = new MapperConfiguration(cfg =>
+        {
+            cfg.CreateMissingTypeMaps = false;
+            cfg.CreateMap<Source, Dest>();
+        });
+
+        [Fact]
+        public void Should_say_what_parameter_fails()
+        {
+            new Action(() => Mapper.Map<Source, Dest>(new Source { Foo = 5, Bar = 10 })).ShouldThrowException<AutoMapperMappingException>(ex =>
+                  ex.MemberMap.DestinationName.ShouldBe("AutoMapper.UnitTests.Constructors.When_mapping_constructor_argument_fails+Dest.Void .ctor(System.DateTime).parameter foo"));
         }
     }
 
@@ -1429,7 +1595,7 @@ namespace AutoMapper.UnitTests.Constructors
 
         protected override MapperConfiguration Configuration { get; } = new MapperConfiguration(cfg =>
         {
-            cfg.CreateMap<Source, Dest>().ForCtorParam("thing", opt => opt.ResolveUsing(src => src.Value));
+            cfg.CreateMap<Source, Dest>().ForCtorParam("thing", opt => opt.MapFrom(src => src.Value));
         });
 
         [Fact]

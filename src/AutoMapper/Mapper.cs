@@ -3,7 +3,11 @@ using AutoMapper.Configuration;
 
 namespace AutoMapper
 {
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Linq.Expressions;
     using ObjectMappingOperationOptions = MappingOperationOptions<object, object>;
+    using QueryableExtensions;
 
     public class Mapper : IRuntimeMapper
     {
@@ -186,8 +190,8 @@ namespace AutoMapper
 
         public Mapper(IConfigurationProvider configurationProvider, Func<Type, object> serviceCtor)
         {
-            _configurationProvider = configurationProvider;
-            _serviceCtor = serviceCtor;
+            _configurationProvider = configurationProvider ?? throw new ArgumentNullException(nameof(configurationProvider));
+            _serviceCtor = serviceCtor ?? throw new ArgumentNullException(nameof(serviceCtor));
             DefaultContext = new ResolutionContext(new ObjectMappingOperationOptions(serviceCtor), this);
         }
 
@@ -200,7 +204,7 @@ namespace AutoMapper
         TDestination IMapper.Map<TDestination>(object source)
         {
             if (source == null)
-                return default(TDestination);
+                return default;
 
             var types = new TypePair(source.GetType(), typeof(TDestination));
 
@@ -354,22 +358,30 @@ namespace AutoMapper
             return destination;
         }
 
-        object IRuntimeMapper.Map(object source, object destination, Type sourceType, Type destinationType, ResolutionContext context, PropertyMap propertyMap)
+        object IRuntimeMapper.Map(object source, object destination, Type sourceType, Type destinationType,
+            ResolutionContext context, IMemberMap memberMap)
         {
             var types = TypePair.Create(source, destination, sourceType, destinationType);
 
-            var func = _configurationProvider.GetUntypedMapperFunc(new MapRequest(new TypePair(sourceType, destinationType), types, propertyMap));
+            var func = _configurationProvider.GetUntypedMapperFunc(new MapRequest(new TypePair(sourceType, destinationType), types, memberMap));
 
             return func(source, destination, context);
         }
 
-        TDestination IRuntimeMapper.Map<TSource, TDestination>(TSource source, TDestination destination, ResolutionContext context, PropertyMap propertyMap)
+        TDestination IRuntimeMapper.Map<TSource, TDestination>(TSource source, TDestination destination,
+            ResolutionContext context, IMemberMap memberMap)
         {
             var types = TypePair.Create(source, destination, typeof(TSource), typeof(TDestination));
 
-            var func = _configurationProvider.GetMapperFunc<TSource, TDestination>(types, propertyMap);
+            var func = _configurationProvider.GetMapperFunc<TSource, TDestination>(types, memberMap);
 
             return func(source, destination, context);
         }
+
+        IQueryable<TDestination> IMapper.ProjectTo<TDestination>(IQueryable source, object parameters, params Expression<Func<TDestination, object>>[] membersToExpand)
+            => source.ProjectTo(_configurationProvider, parameters, membersToExpand);
+
+        IQueryable<TDestination> IMapper.ProjectTo<TDestination>(IQueryable source, IDictionary<string, object> parameters, params string[] membersToExpand)
+            => source.ProjectTo<TDestination>(_configurationProvider, parameters, membersToExpand);
     }
 }

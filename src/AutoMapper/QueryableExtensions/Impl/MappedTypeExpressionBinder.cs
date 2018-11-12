@@ -3,10 +3,12 @@ using System.Linq.Expressions;
 
 namespace AutoMapper.QueryableExtensions.Impl
 {
+    using static Expression;
+
     public class MappedTypeExpressionBinder : IExpressionBinder
     {
         public bool IsMatch(PropertyMap propertyMap, TypeMap propertyTypeMap, ExpressionResolutionResult result) => 
-            propertyTypeMap != null && propertyTypeMap.CustomProjection == null;
+            propertyTypeMap != null && propertyTypeMap.CustomMapExpression == null;
 
         public MemberAssignment Build(IConfigurationProvider configuration, PropertyMap propertyMap, TypeMap propertyTypeMap, ExpressionRequest request, ExpressionResolutionResult result, IDictionary<ExpressionRequest, int> typePairCount, LetPropertyMaps letPropertyMaps) 
             => BindMappedTypeExpression(configuration, propertyMap, request, result, typePairCount, letPropertyMaps);
@@ -18,17 +20,14 @@ namespace AutoMapper.QueryableExtensions.Impl
             {
                 return null;
             }
-            // Handles null source property so it will not create an object with possible non-nullable propeerties 
+            // Handles null source property so it will not create an object with possible non-nullable properties 
             // which would result in an exception.
-            if (propertyMap.TypeMap.Profile.AllowNullDestinationValues && !propertyMap.AllowNull)
+            if (propertyMap.TypeMap.Profile.AllowNullDestinationValues && !propertyMap.AllowNull && !(result.ResolutionExpression is ParameterExpression))
             {
-                var expressionNull = Expression.Constant(null, propertyMap.DestinationPropertyType);
-                transformedExpression =
-                    Expression.Condition(Expression.NotEqual(result.ResolutionExpression, Expression.Constant(null)),
-                        transformedExpression, expressionNull);
+                transformedExpression = result.ResolutionExpression.IfNullElse(Constant(null, transformedExpression.Type), transformedExpression);
             }
 
-            return Expression.Bind(propertyMap.DestinationProperty, transformedExpression);
+            return Bind(propertyMap.DestinationMember, transformedExpression);
         }
     }
 }

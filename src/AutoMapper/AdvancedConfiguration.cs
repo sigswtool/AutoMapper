@@ -1,3 +1,4 @@
+using AutoMapper.QueryableExtensions;
 using System;
 using System.Collections.Generic;
 
@@ -22,14 +23,22 @@ namespace AutoMapper
         /// <param name="validator">the validation callback</param>
         public void Validator(Validator validator) => _validators.Add(validator);
 
+        /// <summary>
+        /// Allow the same map to exist in different profiles.
+        /// The default is to throw an exception, true means the maps are merged.
+        /// </summary>
         public bool AllowAdditiveTypeMapCreation { get; set; }
 
         /// <summary>
         /// How many levels deep should AutoMapper try to inline the execution plan for child classes.
-        /// See <a href="http://automapper.readthedocs.io/en/latest/Understanding-your-mapping.html">the wiki</a> for details.
+        /// See <a href="http://automapper.readthedocs.io/en/latest/Understanding-your-mapping.html">the docs</a> for details.
         /// </summary>
         public int MaxExecutionPlanDepth { get; set; } = 1;
 
         internal Validator[] GetValidators() => _validators.ToArray();
+
+        public List<IExpressionResultConverter> QueryableResultConverters { get; } = ExpressionBuilder.DefaultResultConverters();
+
+        public List<IExpressionBinder> QueryableBinders { get; } = ExpressionBuilder.DefaultBinders();
     }
 }

@@ -14,32 +14,41 @@ namespace AutoMapper.UnitTests
         {
             public InnerSource Inner;
             public OtherInnerSource OtherInner;
+            public Item Value1;
+            public Item Value2;
         }
 
         class InnerSource
         {
-            public int Value;
+            public Item Value;
         }
 
         class OtherInnerSource
         {
-            public int Value;
+            public Item Value;
         }
 
         class InnerDestination
         {
-            public int Value;
+            public Item Value;
         }
 
         class OtherInnerDestination
         {
-            public int Value;
+            public Item Value;
         }
 
         class Destination
         {
             public InnerDestination Inner;
             public OtherInnerDestination OtherInner;
+            public Item Value1;
+            public Item Value2;
+        }
+
+        class Item
+        {
+            public int Value;
         }
 
         protected override MapperConfiguration Configuration => new MapperConfiguration(cfg=>
@@ -47,13 +56,13 @@ namespace AutoMapper.UnitTests
             cfg.CreateMap<Source, Destination>();
             cfg.CreateMap<InnerSource, InnerDestination>();
             cfg.CreateMap<OtherInnerSource, OtherInnerDestination>();
-            cfg.CreateMap<int, int>();
+            cfg.CreateMap<Item, Item>();
         });
 
         [Fact]
         public void Should_not_set_preserve_references()
         {
-            Configuration.ResolveTypeMap(typeof(int), typeof(int)).PreserveReferences.ShouldBeFalse();
+            Configuration.ResolveTypeMap(typeof(Item), typeof(Item)).PreserveReferences.ShouldBeFalse();
         }
     }
 
@@ -116,6 +125,118 @@ namespace AutoMapper.UnitTests
             article.Supplier.Contacts = new List<Contact> { new Contact { Suppliers = new List<Supplier> { article.Supplier } } };
             var supplier = Mapper.Map<ArticleViewModel>(article).Supplier;
             supplier.ShouldBe(supplier.Contacts[0].Suppliers[0]);
+        }
+    }
+
+    public class When_the_source_has_cyclical_references_with_ForPath : AutoMapperSpecBase
+    {
+        public class Article
+        {
+            public int Id { get; set; }
+
+            public virtual Supplier Supplier { get; set; }
+        }
+
+        public class Supplier
+        {
+            public int Id { get; set; }
+
+            public virtual ICollection<Contact> Contacts { get; set; }
+        }
+
+        public class Contact
+        {
+            public int Id { get; set; }
+
+            public virtual ICollection<Supplier> Suppliers { get; set; }
+        }
+
+        public class ArticleViewModel
+        {
+            public int Id { get; set; }
+
+            public SupplierViewModel Supplier { get; set; }
+        }
+
+        public class SupplierViewModel
+        {
+            public int Id { get; set; }
+
+            public List<ContactViewModel> Contacts { get; set; }
+
+        }
+
+        public class ContactViewModel
+        {
+            public int Id { get; set; }
+
+            public List<SupplierViewModel> Suppliers1 { get; set; }
+        }
+
+        protected override MapperConfiguration Configuration => new MapperConfiguration(cfg =>
+        {
+            cfg.CreateMap<Article, ArticleViewModel>();
+            cfg.CreateMap<Supplier, SupplierViewModel>();
+            cfg.CreateMap<Contact, ContactViewModel>().ForPath(d=>d.Suppliers1, o=>o.MapFrom(s=>s.Suppliers));
+        });
+
+        [Fact]
+        public void Should_map_ok()
+        {
+            var article = new Article { Supplier = new Supplier() };
+            article.Supplier.Contacts = new List<Contact> { new Contact { Suppliers = new List<Supplier> { article.Supplier } } };
+            var supplier = Mapper.Map<ArticleViewModel>(article).Supplier;
+            supplier.ShouldBe(supplier.Contacts[0].Suppliers1[0]);
+        }
+    }
+
+    public class When_the_source_has_cyclical_references_with_ignored_ForPath : AutoMapperSpecBase
+    {
+        public class Supplier
+        {
+            public int Id { get; set; }
+
+            public virtual Contact Contact { get; set; }
+        }
+
+        public class Contact
+        {
+            public int Id { get; set; }
+
+            public Supplier Supplier { get; set; }
+        }
+
+        public class SupplierViewModel
+        {
+            public int Id { get; set; }
+
+            public ContactViewModel Contact { get; set; }
+
+        }
+
+        public class ContactViewModel
+        {
+            public int Id { get; set; }
+
+            public SupplierViewModel Supplier1 { get; set; }
+        }
+
+        protected override MapperConfiguration Configuration => new MapperConfiguration(cfg =>
+        {
+            cfg.CreateMap<Supplier, SupplierViewModel>().ForPath(d=>d.Contact.Supplier1, o=>
+            {
+                o.MapFrom(s => s.Contact.Supplier);
+                o.Ignore();
+            });
+        });
+
+        [Fact]
+        public void Should_map_ok()
+        {
+            var supplier = new Supplier();
+            supplier.Contact = new Contact { Supplier = supplier };
+            Mapper.Map<SupplierViewModel>(supplier);
+            ConfigProvider.GetAllTypeMaps().All(tm => tm.PreserveReferences).ShouldBeFalse();
         }
     }
 

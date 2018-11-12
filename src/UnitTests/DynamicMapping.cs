@@ -135,7 +135,7 @@ namespace AutoMapper.UnitTests.DynamicMapping
         protected override MapperConfiguration Configuration { get; } = new MapperConfiguration(cfg =>
         {
             cfg.CreateMap<Original, Target>()
-                .ForMember(t => t.Child, o => o.ResolveUsing<TargetResolver>());
+                .ForMember(t => t.Child, o => o.MapFrom<TargetResolver>());
         });
 
         [Fact]
@@ -345,7 +345,9 @@ namespace AutoMapper.UnitTests.DynamicMapping
         [Fact]
         public void Should_throw()
         {
-            typeof(AutoMapperConfigurationException).ShouldBeThrownBy(() => Mapper.Map<Source, Dest>(new Source()));
+            new Action(() => Mapper.Map<Source, Dest>(new Source()))
+                .ShouldThrowException<AutoMapperConfigurationException>(
+                    ex=>ex.Message.ShouldContain("AutoMapper created this type map for you, but your types cannot be mapped using the current configuration.", Case.Sensitive));
         }
     }
 
@@ -518,4 +520,51 @@ namespace AutoMapper.UnitTests.DynamicMapping
         }
     }
 
+    public class When_inner_maps_are_mismatched : AutoMapperSpecBase
+    {
+        public class Source
+        {
+            public int Value { get; set; }
+            public Child Value2 { get; set; }
+
+            public class Child
+            {
+                public InnerChild Value { get; set; }
+            }
+            public class InnerChild
+            {
+                public string Value { get; set; }
+            }
+        }
+
+        public class Dest
+        {
+            public int Value { get; set; }
+            public Child Value2 { get; set; }
+
+            public class Child
+            {
+                public InnerChild Value { get; set; }
+            }
+            public class InnerChild
+            {
+                public string Valuefff { get; set; }
+            }
+        }
+
+        protected override MapperConfiguration Configuration { get; } = new MapperConfiguration(cfg => cfg.CreateMap<Source, Dest>());
+
+        [Fact]
+        public void Should_not_pass_runtime_validation()
+        {
+            Action assert = () => Mapper.Map<Dest>(new Source { Value = 5, Value2 = new Source.Child { Value = new Source.InnerChild { Value = "asdf" } } });
+
+            var exception = assert.ShouldThrow<AutoMapperMappingException>();
+            var inner = exception.GetBaseException() as AutoMapperConfigurationException;
+
+            inner.ShouldNotBeNull();
+
+            inner.Errors.Select(e => e.TypeMap.Types).ShouldContain(tp => tp == new TypePair(typeof(Source.InnerChild), typeof(Dest.InnerChild)));
+        }
+    }
 }

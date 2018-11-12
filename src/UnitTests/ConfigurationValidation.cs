@@ -52,7 +52,7 @@ namespace AutoMapper.UnitTests.ConfigurationValidation
             else
             {
                 context.PropertyMap.SourceMember.Name.ShouldBe("Values");
-                context.PropertyMap.DestinationProperty.Name.ShouldBe("Values");
+                context.PropertyMap.DestinationName.ShouldBe("Values");
                 if(context.Types.Equals(new TypePair(typeof(int), typeof(int))))
                 {
                     _calledForInt = true;
@@ -61,7 +61,7 @@ namespace AutoMapper.UnitTests.ConfigurationValidation
                 else
                 {
                     _calledForValues = true;
-                    context.ObjectMapper.ShouldBeOfType<ArrayMapper>();
+                    context.ObjectMapper.ShouldBeOfType<ArrayCopyMapper>();
                     context.Types.SourceType.ShouldBe(typeof(int[]));
                     context.Types.DestinationType.ShouldBe(typeof(int[]));
                 }
@@ -575,6 +575,12 @@ namespace AutoMapper.UnitTests.ConfigurationValidation
         {
             typeof(AutoMapperConfigurationException).ShouldNotBeThrownBy(() => Configuration.AssertConfigurationIsValid("Good"));
         }
+
+        [Fact]
+        public void Should_throw_when_profile_name_does_not_exist()
+        {
+            typeof(ArgumentOutOfRangeException).ShouldBeThrownBy(() => Configuration.AssertConfigurationIsValid("Does not exist"));
+        }
     }
 
     public class When_testing_a_dto_with_mismatched_custom_member_mapping : NonValidatingSpecBase
@@ -621,7 +627,7 @@ namespace AutoMapper.UnitTests.ConfigurationValidation
         {
             object i = 7;
             cfg.CreateMap<Source, Destination>()
-                .ForMember(dest => dest.Value, opt => opt.UseValue(i));
+                .ForMember(dest => dest.Value, opt => opt.MapFrom(src => i));
         });
 
         [Fact]

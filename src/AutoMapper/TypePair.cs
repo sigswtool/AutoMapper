@@ -13,23 +13,23 @@ namespace AutoMapper
         public TypePair RequestedTypes { get; }
         public TypePair RuntimeTypes { get; }
         public ITypeMapConfiguration InlineConfig { get; }
-        public PropertyMap PropertyMap { get; }
+        public IMemberMap MemberMap { get; }
 
-        public MapRequest(TypePair requestedTypes, TypePair runtimeTypes, PropertyMap propertyMap = null) 
-            : this(requestedTypes, runtimeTypes, new MapperConfiguration.DefaultTypeMapConfig(requestedTypes), propertyMap)
+        public MapRequest(TypePair requestedTypes, TypePair runtimeTypes, IMemberMap memberMap = null) 
+            : this(requestedTypes, runtimeTypes, new MapperConfiguration.DefaultTypeMapConfig(requestedTypes), memberMap)
         {
         }
 
-        public MapRequest(TypePair requestedTypes, TypePair runtimeTypes, ITypeMapConfiguration inlineConfig, PropertyMap propertyMap = null)
+        public MapRequest(TypePair requestedTypes, TypePair runtimeTypes, ITypeMapConfiguration inlineConfig, IMemberMap memberMap = null)
         {
             RequestedTypes = requestedTypes;
             RuntimeTypes = runtimeTypes;
             InlineConfig = inlineConfig;
-            PropertyMap = propertyMap;
+            MemberMap = memberMap;
         }
 
         public bool Equals(MapRequest other) => 
-            RequestedTypes.Equals(other.RequestedTypes) && RuntimeTypes.Equals(other.RuntimeTypes) && Equals(PropertyMap, other.PropertyMap);
+            RequestedTypes.Equals(other.RequestedTypes) && RuntimeTypes.Equals(other.RuntimeTypes) && Equals(MemberMap, other.MemberMap);
 
         public override bool Equals(object obj)
         {
@@ -40,9 +40,9 @@ namespace AutoMapper
         public override int GetHashCode()
         {
             var hashCode = HashCodeCombiner.Combine(RequestedTypes, RuntimeTypes);
-            if(PropertyMap != null)
+            if(MemberMap != null)
             {
-                hashCode = HashCodeCombiner.Combine(hashCode, PropertyMap.GetHashCode());
+                hashCode = HashCodeCombiner.Combine(hashCode, MemberMap.GetHashCode());
             }
             return hashCode;
         }
@@ -99,15 +99,31 @@ namespace AutoMapper
         public TypePair? GetOpenGenericTypePair()
         {
             var isGeneric = SourceType.IsGenericType() || DestinationType.IsGenericType();
-            if (!isGeneric)
+            if(!isGeneric)
+            {
                 return null;
-
+            }
             var sourceGenericDefinition = SourceType.IsGenericType() ? SourceType.GetGenericTypeDefinition() : SourceType;
-            var destGenericDefinition = DestinationType.IsGenericType() ? DestinationType.GetGenericTypeDefinition() : DestinationType;
+            var destinationGenericDefinition = DestinationType.IsGenericType() ? DestinationType.GetGenericTypeDefinition() : DestinationType;
 
-            var genericTypePair = new TypePair(sourceGenericDefinition, destGenericDefinition);
+            return new TypePair(sourceGenericDefinition, destinationGenericDefinition);
+        }
 
-            return genericTypePair;
+        public TypePair CloseGenericTypes(TypePair closedTypes)
+        {
+            var sourceArguments = closedTypes.SourceType.GetGenericArguments();
+            var destinationArguments = closedTypes.DestinationType.GetGenericArguments();
+            if(sourceArguments.Length == 0)
+            {
+                sourceArguments = destinationArguments;
+            }
+            else if(destinationArguments.Length == 0)
+            {
+                destinationArguments = sourceArguments;
+            }
+            var closedSourceType = SourceType.IsGenericTypeDefinition() ? SourceType.MakeGenericType(sourceArguments) : SourceType;
+            var closedDestinationType = DestinationType.IsGenericTypeDefinition() ? DestinationType.MakeGenericType(destinationArguments) : DestinationType;
+            return new TypePair(closedSourceType, closedDestinationType);
         }
 
         public IEnumerable<TypePair> GetRelatedTypePairs()
